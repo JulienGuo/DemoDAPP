@@ -1,0 +1,75 @@
+---
+apiVersion: v1
+items:
+- !!com.ibm.baas.script.bo.ServiceYamlBo
+  apiVersion: v1
+  kind: Service
+  metadata:
+    labels:
+      app: ca1
+    name: ca1
+  spec:
+    ports:
+    - name: ca1
+      nodePort: 32154
+      port: 7054
+      targetPort: 7054
+    selector:
+      app: ca1
+    type: NodePort
+- !!com.ibm.baas.script.bo.RCYamlBo
+  apiVersion: v1
+  kind: ReplicationController
+  metadata:
+    labels:
+      app: ca1
+      component: ca1
+    name: ca1
+  spec:
+    replicas: 1
+    selector:
+      app: ca1
+    template:
+      metadata:
+        labels:
+          app: ca1
+          component: ca1
+      spec:
+        containers:
+        - args:
+          - start
+          - -b=admin:adminpw
+          - -d
+          command:
+          - fabric-ca-server
+          env:
+          - name: FABRIC_CA_HOME
+            value: /var/hyperledger/production
+          - name: FABRIC_CA_SERVER_CA_NAME
+            value: ca-org2
+          - name: FABRIC_CA_SERVER_CA_CERTFILE
+            value: /var/hyperledger/production/config/ca.org2.example.com-cert.pem
+          - name: FABRIC_CA_SERVER_CA_KEYFILE
+            value: /var/hyperledger/production/config/b851da665f99bc46f53e067a6de57c70c95af2bf35bf1fb244713b677b434ae9_sk
+          - name: FABRIC_CA_SERVER_TLS_ENABLED
+            value: 'false'
+          - name: FABRIC_CA_SERVER_TLS_CERTFILE
+            value: /var/hyperledger/production/config/ca.org2.example.com-cert.pem
+          - name: FABRIC_CA_SERVER_TLS_KEYFILE
+            value: /var/hyperledger/production/config/b851da665f99bc46f53e067a6de57c70c95af2bf35bf1fb244713b677b434ae9_sk
+          - name: FABRIC_CA_DEBUG
+            value: 'true'
+          image: 10.2.0.219:5000/hyperledger/fabric-ca:x86_64-1.0.0
+          name: ca1
+          ports:
+          - containerPort: 7054
+          volumeMounts:
+          - mountPath: /var/hyperledger/production
+            name: nfs
+          workingDir: /var/hyperledger/production
+        volumes:
+        - name: nfs
+          nfs:
+            path: /data/BaaS/platform/delayinsurance/fixtures/kube/runtime/org2/ca1
+            server: 10.2.0.210
+kind: List

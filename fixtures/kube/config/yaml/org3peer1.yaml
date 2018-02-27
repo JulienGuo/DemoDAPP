@@ -1,0 +1,122 @@
+---
+apiVersion: v1
+items:
+- !!com.ibm.baas.script.bo.ServiceYamlBo
+  apiVersion: v1
+  kind: Service
+  metadata:
+    labels:
+      app: org3peer1
+    name: org3peer1
+  spec:
+    ports:
+    - name: org3peer1
+      nodePort: 32261
+      port: 7051
+      targetPort: 7051
+    - name: org3peer1-event
+      nodePort: 32263
+      port: 7053
+      targetPort: 7053
+    selector:
+      app: org3peer1
+    type: NodePort
+- !!com.ibm.baas.script.bo.RCYamlBo
+  apiVersion: v1
+  kind: ReplicationController
+  metadata:
+    labels:
+      app: org3peer1
+      component: org3peer1
+    name: org3peer1
+  spec:
+    replicas: 1
+    selector:
+      app: org3peer1
+    template:
+      metadata:
+        labels:
+          app: org3peer1
+          component: org3peer1
+      spec:
+        containers:
+        - env:
+          - name: CORE_LOGGING_LEVEL
+            value: DEBUG
+          image: 10.2.0.219:5000/hyperledger/fabric-couchdb:x86_64-1.0.0
+          name: org3couchdb1
+          ports:
+          - containerPort: 5984
+          volumeMounts:
+          - mountPath: /opt/couchdb/data
+            name: couchdb-data
+        - args:
+          - node
+          - start
+          - --peer-defaultchain=false
+          command:
+          - peer
+          env:
+          - name: CORE_PEER_ADDRESSAUTODETECT
+            value: 'true'
+          - name: CORE_VM_ENDPOINT
+            value: unix:///host/var/run/docker.sock
+          - name: CORE_VM_DOCKER_HOSTCONFIG_NETWORKMODE
+            value: bridge
+          - name: CORE_PEER_TLS_ENABLED
+            value: 'false'
+          - name: CORE_NEXT
+            value: 'true'
+          - name: CORE_PEER_ENDORSER_ENABLED
+            value: 'true'
+          - name: CORE_PEER_GOSSIP_USELEADERELECTION
+            value: 'true'
+          - name: CORE_PEER_GOSSIP_ORGLEADER
+            value: 'false'
+          - name: CORE_PEER_GOSSIP_SKIPHANDSHAKE
+            value: 'true'
+          - name: CORE_PEER_PROFILE_ENABLED
+            value: 'true'
+          - name: CORE_LOGGING_LEVEL
+            value: DEBUG
+          - name: CORE_PEER_ID
+            value: org3peer1
+          - name: CORE_PEER_LOCALMSPID
+            value: Org3MSP
+          - name: CORE_PEER_MSPCONFIGPATH
+            value: /var/hyperledger/production/msp
+          - name: CORE_PEER_TLS_CERT_FILE
+            value: /var/hyperledger/production/tls/server.crt
+          - name: CORE_PEER_TLS_KEY_FILE
+            value: /var/hyperledger/production/tls/server.key
+          - name: CORE_PEER_TLS_ROOTCERT_FILE
+            value: /var/hyperledger/production/tls/ca.crt
+          - name: CORE_PEER_TLS_SERVERHOSTOVERRIDE
+            value: org3peer1
+          - name: CORE_LEDGER_STATE_STATEDATABASE
+            value: CouchDB
+          - name: CORE_LEDGER_STATE_COUCHDBCONFIG_COUCHDBADDRESS
+            value: localhost:5984
+          image: 10.2.0.219:5000/hyperledger/fabric-peer:x86_64-1.0.0
+          name: org3peer1
+          ports:
+          - containerPort: 7051
+          - containerPort: 7053
+          volumeMounts:
+          - mountPath: /var/hyperledger/production
+            name: nfs
+          - mountPath: /host/var/run/
+            name: var-run
+        volumes:
+        - name: nfs
+          nfs:
+            path: /data/BaaS/platform/delayinsurance/fixtures/kube/runtime/org3/peer1
+            server: 10.2.0.210
+        - hostPath:
+            path: /var/run/
+          name: var-run
+        - name: couchdb-data
+          nfs:
+            path: /data/BaaS/platform/delayinsurance/fixtures/kube/runtime/org3/peer1/couchdb-data
+            server: 10.2.0.210
+kind: List

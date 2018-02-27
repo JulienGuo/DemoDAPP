@@ -1,0 +1,10 @@
+*.iml
+/.idea/workspace.xml
+/.idea/libraries
+.DS_Store
+.idea
+data
+data/*
+fixtures/channel/config
+fixtures/channel/crypto-config
+test

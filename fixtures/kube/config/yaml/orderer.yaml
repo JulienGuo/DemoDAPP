@@ -1,0 +1,75 @@
+---
+apiVersion: v1
+items:
+- !!com.ibm.baas.script.bo.ServiceYamlBo
+  apiVersion: v1
+  kind: Service
+  metadata:
+    labels:
+      app: orderer
+    name: orderer
+  spec:
+    ports:
+    - name: orderer
+      nodePort: 32060
+      port: 7050
+      targetPort: 7050
+    selector:
+      app: orderer
+    type: NodePort
+- !!com.ibm.baas.script.bo.RCYamlBo
+  apiVersion: v1
+  kind: ReplicationController
+  metadata:
+    labels:
+      app: orderer
+      component: orderer
+    name: orderer
+  spec:
+    replicas: 1
+    selector:
+      app: orderer
+    template:
+      metadata:
+        labels:
+          app: orderer
+          component: orderer
+      spec:
+        containers:
+        - command:
+          - orderer
+          env:
+          - name: ORDERER_GENERAL_LOGLEVEL
+            value: debug
+          - name: ORDERER_GENERAL_LISTENADDRESS
+            value: 0.0.0.0
+          - name: ORDERER_GENERAL_GENESISMETHOD
+            value: file
+          - name: ORDERER_GENERAL_GENESISFILE
+            value: /var/hyperledger/production/genesis.block
+          - name: ORDERER_GENERAL_LOCALMSPID
+            value: OrdererMSP
+          - name: ORDERER_GENERAL_LOCALMSPDIR
+            value: /var/hyperledger/production/msp
+          - name: ORDERER_GENERAL_TLS_ENABLED
+            value: 'false'
+          - name: ORDERER_GENERAL_TLS_PRIVATEKEY
+            value: /var/hyperledger/production/tls/server.key
+          - name: ORDERER_GENERAL_TLS_CERTIFICATE
+            value: /var/hyperledger/production/tls/server.crt
+          - name: ORDERER_GENERAL_TLS_ROOTCAS
+            value: '[/var/hyperledger/production/tls/ca.crt, /var/hyperledger/production/msp/cacerts/ca.example.com-cert.pem,  /var/hyperledger/production/msp/cacerts/ca.org1.example.com-cert.pem,  /var/hyperledger/production/msp/cacerts/ca.org2.example.com-cert.pem,  /var/hyperledger/production/msp/cacerts/ca.org3.example.com-cert.pem]'
+          image: 10.2.0.219:5000/hyperledger/fabric-orderer:x86_64-1.0.0
+          name: orderer
+          ports:
+          - containerPort: 7050
+          volumeMounts:
+          - mountPath: /var/hyperledger/production
+            name: nfs
+          workingDir: /opt/gopath/src/github.com/hyperledger/fabric
+        volumes:
+        - name: nfs
+          nfs:
+            path: /data/BaaS/platform/delayinsurance/fixtures/kube/runtime/orderer
+            server: 10.2.0.210
+kind: List

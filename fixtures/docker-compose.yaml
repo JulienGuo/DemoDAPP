@@ -1,0 +1,348 @@
+#
+# Copyright IBM Corp, SecureKey Technologies Inc. All Rights Reserved.
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+version: '2'
+
+networks:
+  kubaoyun:
+
+services:
+  ca0:
+    image: ${FABRIC_CA_FIXTURE_IMAGE}:${ARCH}-${FABRIC_CA_FIXTURE_TAG}
+    environment:
+      - FABRIC_CA_HOME=/etc/hyperledger/fabric-ca-server
+      - FABRIC_CA_SERVER_CA_NAME=ca-org1
+      - FABRIC_CA_SERVER_TLS_ENABLED=true
+      - FABRIC_CA_SERVER_TLS_CERTFILE=/etc/hyperledger/fabric-ca-server-config/ca.org1.example.com-cert.pem
+      - FABRIC_CA_SERVER_TLS_KEYFILE=/etc/hyperledger/fabric-ca-server-config/CA1_PRIVATE_KEY
+    ports:
+      - "7054:7054"
+    command: sh -c 'fabric-ca-server start --ca.certfile /etc/hyperledger/fabric-ca-server-config/ca.org1.example.com-cert.pem --ca.keyfile /etc/hyperledger/fabric-ca-server-config/CA1_PRIVATE_KEY -b admin:adminpw -d'
+    volumes:
+      - ./channel/crypto-config/peerOrganizations/org1.example.com/ca/:/etc/hyperledger/fabric-ca-server-config
+    container_name: ca_peerOrg1
+    networks:
+      - kubaoyun
+
+  ca1:
+    image: ${FABRIC_CA_FIXTURE_IMAGE}:${ARCH}-${FABRIC_CA_FIXTURE_TAG}
+    environment:
+      - FABRIC_CA_HOME=/etc/hyperledger/fabric-ca-server
+      - FABRIC_CA_SERVER_CA_NAME=ca-org2
+      - FABRIC_CA_SERVER_TLS_ENABLED=true
+      - FABRIC_CA_SERVER_TLS_CERTFILE=/etc/hyperledger/fabric-ca-server-config/ca.org2.example.com-cert.pem
+      - FABRIC_CA_SERVER_TLS_KEYFILE=/etc/hyperledger/fabric-ca-server-config/CA2_PRIVATE_KEY
+    ports:
+      - "8054:7054"
+    command: sh -c 'fabric-ca-server start --ca.certfile /etc/hyperledger/fabric-ca-server-config/ca.org2.example.com-cert.pem --ca.keyfile /etc/hyperledger/fabric-ca-server-config/CA2_PRIVATE_KEY -b admin:adminpw -d'
+    volumes:
+      - ./channel/crypto-config/peerOrganizations/org2.example.com/ca/:/etc/hyperledger/fabric-ca-server-config
+    container_name: ca_peerOrg2
+    networks:
+      - kubaoyun
+
+  ca2:
+    image: ${FABRIC_CA_FIXTURE_IMAGE}:${ARCH}-${FABRIC_CA_FIXTURE_TAG}
+    environment:
+      - FABRIC_CA_HOME=/etc/hyperledger/fabric-ca-server
+      - FABRIC_CA_SERVER_CA_NAME=ca-org3
+      - FABRIC_CA_SERVER_TLS_ENABLED=true
+      - FABRIC_CA_SERVER_TLS_CERTFILE=/etc/hyperledger/fabric-ca-server-config/ca.org3.example.com-cert.pem
+      - FABRIC_CA_SERVER_TLS_KEYFILE=/etc/hyperledger/fabric-ca-server-config/CA3_PRIVATE_KEY
+    ports:
+      - "9054:7054"
+    command: sh -c 'fabric-ca-server start --ca.certfile /etc/hyperledger/fabric-ca-server-config/ca.org3.example.com-cert.pem --ca.keyfile /etc/hyperledger/fabric-ca-server-config/CA3_PRIVATE_KEY -b admin:adminpw -d'
+    volumes:
+      - ./channel/crypto-config/peerOrganizations/org3.example.com/ca/:/etc/hyperledger/fabric-ca-server-config
+    container_name: ca_peerOrg3
+    networks:
+      - kubaoyun
+
+  orderer.example.com:
+    container_name: orderer.example.com
+    image: ${FABRIC_ORDERER_FIXTURE_IMAGE}:${ARCH}-${FABRIC_ORDERER_FIXTURE_TAG}
+    environment:
+      - ORDERER_GENERAL_LOGLEVEL=debug
+      - ORDERER_GENERAL_LISTENADDRESS=0.0.0.0
+      - ORDERER_GENERAL_GENESISMETHOD=file
+      - ORDERER_GENERAL_GENESISFILE=/etc/hyperledger/orderer/orderer.genesis.block
+      - ORDERER_GENERAL_LOCALMSPID=OrdererMSP
+      - ORDERER_GENERAL_LOCALMSPDIR=/etc/hyperledger/orderer/msp
+      - ORDERER_GENERAL_TLS_ENABLED=true
+      - ORDERER_GENERAL_TLS_PRIVATEKEY=/etc/hyperledger/orderer/tls/server.key
+      - ORDERER_GENERAL_TLS_CERTIFICATE=/etc/hyperledger/orderer/tls/server.crt
+      - ORDERER_GENERAL_TLS_ROOTCAS=[/etc/hyperledger/orderer/tls/ca.crt]
+    working_dir: /opt/gopath/src/github.com/hyperledger/fabric
+    command: orderer
+    ports:
+      - 7050:7050
+    volumes:
+    - ./channel/config/genesis.block:/etc/hyperledger/orderer/orderer.genesis.block
+    - ./channel/crypto-config/ordererOrganizations/example.com/orderers/orderer.example.com/msp:/etc/hyperledger/orderer/msp
+    - ./channel/crypto-config/ordererOrganizations/example.com/orderers/orderer.example.com/tls/:/etc/hyperledger/orderer/tls
+    networks:
+      - kubaoyun
+
+  peer0.org1.example.com:
+    container_name: peer0.org1.example.com
+    image: ${FABRIC_PEER_FIXTURE_IMAGE}:${ARCH}-${FABRIC_PEER_FIXTURE_TAG}
+    environment:
+      - CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock
+      - CORE_PEER_ID=peer0.org1.example.com
+      - CORE_LOGGING_LEVEL=DEBUG
+      - CORE_PEER_GOSSIP_EXTERNALENDPOINT=peer0.org1.example.com:7051 #1.1原示例新增此项
+      - CORE_PEER_GOSSIP_USELEADERELECTION=true #1.1原示例新增此项
+      - CORE_PEER_GOSSIP_ORGLEADER=false #1.1原示例新增此项
+      - CORE_PEER_PROFILE_ENABLED=true #1.1原示例新增此项
+      - CORE_VM_DOCKER_ATTACHSTDOUT=true
+      - CORE_PEER_LOCALMSPID=Org1MSP
+      - CORE_PEER_ADDRESS=peer0.org1.example.com:7051
+      - CORE_PEER_TLS_ENABLED=true
+      - CORE_PEER_TLS_KEY_FILE=/etc/hyperledger/fabric/tls/server.key
+      - CORE_PEER_TLS_CERT_FILE=/etc/hyperledger/fabric/tls/server.crt
+      - CORE_PEER_TLS_ROOTCERT_FILE=/etc/hyperledger/fabric/tls/ca.crt
+      # the following setting starts chaincode containers on the same
+      # bridge network as the peers
+      # https://docs.docker.com/compose/networking/
+      - CORE_VM_DOCKER_HOSTCONFIG_NETWORKMODE=fixtures_kubaoyun
+    working_dir: /opt/gopath/src/github.com/hyperledger/fabric/peer
+    command: peer node start
+    ports:
+      - 7051:7051
+      - 7053:7053
+    volumes:
+        - /var/run/:/host/var/run/
+        - ./channel/crypto-config/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/msp:/etc/hyperledger/fabric/msp
+        - ./channel/crypto-config/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls:/etc/hyperledger/fabric/tls
+    depends_on:
+      - orderer.example.com
+      - builder
+    networks:
+      - kubaoyun
+
+  peer1.org1.example.com:
+    container_name: peer1.org1.example.com
+    image: ${FABRIC_PEER_FIXTURE_IMAGE}:${ARCH}-${FABRIC_PEER_FIXTURE_TAG}
+    environment:
+      - CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock
+      - CORE_PEER_ID=peer1.org1.example.com
+      - CORE_LOGGING_LEVEL=DEBUG
+      - CORE_PEER_GOSSIP_EXTERNALENDPOINT=peer1.org1.example.com:7051 #1.1原示例新增此项
+      - CORE_PEER_GOSSIP_USELEADERELECTION=true #1.1原示例新增此项
+      - CORE_PEER_GOSSIP_ORGLEADER=false #1.1原示例新增此项
+      - CORE_PEER_PROFILE_ENABLED=true #1.1原示例新增此项
+      - CORE_VM_DOCKER_ATTACHSTDOUT=true
+      - CORE_PEER_LOCALMSPID=Org1MSP
+      - CORE_PEER_ADDRESS=peer1.org1.example.com:7051
+      - CORE_PEER_TLS_ENABLED=true
+      - CORE_PEER_TLS_KEY_FILE=/etc/hyperledger/fabric/tls/server.key
+      - CORE_PEER_TLS_CERT_FILE=/etc/hyperledger/fabric/tls/server.crt
+      - CORE_PEER_TLS_ROOTCERT_FILE=/etc/hyperledger/fabric/tls/ca.crt
+      # the following setting starts chaincode containers on the same
+      # bridge network as the peers
+      # https://docs.docker.com/compose/networking/
+      - CORE_VM_DOCKER_HOSTCONFIG_NETWORKMODE=fixtures_kubaoyun
+    working_dir: /opt/gopath/src/github.com/hyperledger/fabric/peer
+    command: peer node start
+    ports:
+      - 7061:7051
+      - 7063:7053
+    volumes:
+        - /var/run/:/host/var/run/
+        - ./channel/crypto-config/peerOrganizations/org1.example.com/peers/peer1.org1.example.com/msp:/etc/hyperledger/fabric/msp
+        - ./channel/crypto-config/peerOrganizations/org1.example.com/peers/peer1.org1.example.com/tls:/etc/hyperledger/fabric/tls
+    depends_on:
+      - orderer.example.com
+      - builder
+    networks:
+      - kubaoyun
+
+  peer0.org2.example.com:
+    container_name: peer0.org2.example.com
+    image: ${FABRIC_PEER_FIXTURE_IMAGE}:${ARCH}-${FABRIC_PEER_FIXTURE_TAG}
+    environment:
+      - CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock
+      - CORE_PEER_ID=peer0.org2.example.com
+      - CORE_LOGGING_LEVEL=DEBUG
+      - CORE_PEER_GOSSIP_EXTERNALENDPOINT=peer0.org2.example.com:7051 #1.1原示例新增此项
+      - CORE_PEER_GOSSIP_USELEADERELECTION=true #1.1原示例新增此项
+      - CORE_PEER_GOSSIP_ORGLEADER=false #1.1原示例新增此项
+      - CORE_PEER_PROFILE_ENABLED=true #1.1原示例新增此项
+#      - CORE_VM_DOCKER_ATTACHSTDOUT=true
+      - CORE_PEER_LOCALMSPID=Org2MSP
+      - CORE_PEER_ADDRESS=peer0.org2.example.com:7051
+      - CORE_PEER_TLS_ENABLED=true
+      - CORE_PEER_TLS_KEY_FILE=/etc/hyperledger/fabric/tls/server.key
+      - CORE_PEER_TLS_CERT_FILE=/etc/hyperledger/fabric/tls/server.crt
+      - CORE_PEER_TLS_ROOTCERT_FILE=/etc/hyperledger/fabric/tls/ca.crt
+      # the following setting starts chaincode containers on the same
+      # bridge network as the peers
+      # https://docs.docker.com/compose/networking/
+      - CORE_VM_DOCKER_HOSTCONFIG_NETWORKMODE=fixtures_kubaoyun
+    working_dir: /opt/gopath/src/github.com/hyperledger/fabric/peer
+    command: peer node start
+    ports:
+      - 8051:7051
+      - 8053:7053
+    volumes:
+        - /var/run/:/host/var/run/
+        - ./channel/crypto-config/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/msp:/etc/hyperledger/fabric/msp
+        - ./channel/crypto-config/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/tls:/etc/hyperledger/fabric/tls
+    depends_on:
+      - orderer.example.com
+      - builder
+    networks:
+      - kubaoyun
+
+  peer1.org2.example.com:
+    container_name: peer1.org2.example.com
+    image: ${FABRIC_PEER_FIXTURE_IMAGE}:${ARCH}-${FABRIC_PEER_FIXTURE_TAG}
+    environment:
+      - CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock
+      - CORE_PEER_ID=peer1.org2.example.com
+      - CORE_LOGGING_LEVEL=DEBUG
+      - CORE_PEER_GOSSIP_EXTERNALENDPOINT=peer1.org2.example.com:7051 #1.1原示例新增此项
+      - CORE_PEER_GOSSIP_USELEADERELECTION=true #1.1原示例新增此项
+      - CORE_PEER_GOSSIP_ORGLEADER=false #1.1原示例新增此项
+      - CORE_PEER_PROFILE_ENABLED=true #1.1原示例新增此项
+#      - CORE_VM_DOCKER_ATTACHSTDOUT=true
+      - CORE_PEER_LOCALMSPID=Org2MSP
+      - CORE_PEER_ADDRESS=peer1.org2.example.com:7051
+      - CORE_PEER_TLS_ENABLED=true
+      - CORE_PEER_TLS_KEY_FILE=/etc/hyperledger/fabric/tls/server.key
+      - CORE_PEER_TLS_CERT_FILE=/etc/hyperledger/fabric/tls/server.crt
+      - CORE_PEER_TLS_ROOTCERT_FILE=/etc/hyperledger/fabric/tls/ca.crt
+      # the following setting starts chaincode containers on the same
+      # bridge network as the peers
+      # https://docs.docker.com/compose/networking/
+      - CORE_VM_DOCKER_HOSTCONFIG_NETWORKMODE=fixtures_kubaoyun
+    working_dir: /opt/gopath/src/github.com/hyperledger/fabric/peer
+    command: peer node start
+    ports:
+      - 8061:7051
+      - 8063:7053
+    volumes:
+        - /var/run/:/host/var/run/
+        - ./channel/crypto-config/peerOrganizations/org2.example.com/peers/peer1.org2.example.com/msp:/etc/hyperledger/fabric/msp
+        - ./channel/crypto-config/peerOrganizations/org2.example.com/peers/peer1.org2.example.com/tls:/etc/hyperledger/fabric/tls
+    depends_on:
+      - orderer.example.com
+      - builder
+    networks:
+      - kubaoyun
+
+  peer0.org3.example.com:
+    container_name: peer0.org3.example.com
+    image: ${FABRIC_PEER_FIXTURE_IMAGE}:${ARCH}-${FABRIC_PEER_FIXTURE_TAG}
+    environment:
+      - CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock
+      - CORE_PEER_ID=peer0.org3.example.com
+      - CORE_LOGGING_LEVEL=DEBUG
+      - CORE_PEER_GOSSIP_EXTERNALENDPOINT=peer0.org3.example.com:7051 #1.1原示例新增此项
+      - CORE_PEER_GOSSIP_USELEADERELECTION=true #1.1原示例新增此项
+      - CORE_PEER_GOSSIP_ORGLEADER=false #1.1原示例新增此项
+      - CORE_PEER_PROFILE_ENABLED=true #1.1原示例新增此项
+#      - CORE_VM_DOCKER_ATTACHSTDOUT=true
+      - CORE_PEER_LOCALMSPID=Org3MSP
+      - CORE_PEER_ADDRESS=peer0.org3.example.com:7051
+      - CORE_PEER_TLS_ENABLED=true
+      - CORE_PEER_TLS_KEY_FILE=/etc/hyperledger/fabric/tls/server.key
+      - CORE_PEER_TLS_CERT_FILE=/etc/hyperledger/fabric/tls/server.crt
+      - CORE_PEER_TLS_ROOTCERT_FILE=/etc/hyperledger/fabric/tls/ca.crt
+      # the following setting starts chaincode containers on the same
+      # bridge network as the peers
+      # https://docs.docker.com/compose/networking/
+      - CORE_VM_DOCKER_HOSTCONFIG_NETWORKMODE=fixtures_kubaoyun
+    working_dir: /opt/gopath/src/github.com/hyperledger/fabric/peer
+    command: peer node start
+    ports:
+      - 9051:7051
+      - 9053:7053
+    volumes:
+        - /var/run/:/host/var/run/
+        - ./channel/crypto-config/peerOrganizations/org3.example.com/peers/peer0.org3.example.com/msp:/etc/hyperledger/fabric/msp
+        - ./channel/crypto-config/peerOrganizations/org3.example.com/peers/peer0.org3.example.com/tls:/etc/hyperledger/fabric/tls
+    depends_on:
+      - orderer.example.com
+      - builder
+    networks:
+      - kubaoyun
+
+  peer1.org3.example.com:
+    container_name: peer1.org3.example.com
+    image: ${FABRIC_PEER_FIXTURE_IMAGE}:${ARCH}-${FABRIC_PEER_FIXTURE_TAG}
+    environment:
+      - CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock
+      - CORE_PEER_ID=peer1.org3.example.com
+      - CORE_LOGGING_LEVEL=DEBUG
+      - CORE_PEER_GOSSIP_EXTERNALENDPOINT=peer1.org3.example.com:7051 #1.1原示例新增此项
+      - CORE_PEER_GOSSIP_USELEADERELECTION=true #1.1原示例新增此项
+      - CORE_PEER_GOSSIP_ORGLEADER=false #1.1原示例新增此项
+      - CORE_PEER_PROFILE_ENABLED=true #1.1原示例新增此项
+#      - CORE_VM_DOCKER_ATTACHSTDOUT=true
+      - CORE_PEER_LOCALMSPID=Org3MSP
+      - CORE_PEER_ADDRESS=peer1.org3.example.com:7051
+      - CORE_PEER_TLS_ENABLED=true
+      - CORE_PEER_TLS_KEY_FILE=/etc/hyperledger/fabric/tls/server.key
+      - CORE_PEER_TLS_CERT_FILE=/etc/hyperledger/fabric/tls/server.crt
+      - CORE_PEER_TLS_ROOTCERT_FILE=/etc/hyperledger/fabric/tls/ca.crt
+      # the following setting starts chaincode containers on the same
+      # bridge network as the peers
+      # https://docs.docker.com/compose/networking/
+      - CORE_VM_DOCKER_HOSTCONFIG_NETWORKMODE=fixtures_kubaoyun
+    working_dir: /opt/gopath/src/github.com/hyperledger/fabric/peer
+    command: peer node start
+    ports:
+      - 9061:7051
+      - 9063:7053
+    volumes:
+        - /var/run/:/host/var/run/
+        - ./channel/crypto-config/peerOrganizations/org3.example.com/peers/peer1.org3.example.com/msp:/etc/hyperledger/fabric/msp
+        - ./channel/crypto-config/peerOrganizations/org3.example.com/peers/peer1.org3.example.com/tls:/etc/hyperledger/fabric/tls
+    depends_on:
+      - orderer.example.com
+      - builder
+    networks:
+      - kubaoyun
+
+  cli:
+    container_name: cli
+    image: hyperledger/fabric-tools:x86_64-1.1.0-preview
+    tty: true
+    environment:
+      - GOPATH=/opt/gopath
+      - CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock
+      - CORE_LOGGING_LEVEL=DEBUG
+      - CORE_PEER_ID=cli
+      - CORE_PEER_ADDRESS=peer0.org1.example.com:7051
+      - CORE_PEER_LOCALMSPID=Org1MSP
+      - CORE_PEER_TLS_ENABLED=true
+      - CORE_PEER_TLS_CERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/server.crt
+      - CORE_PEER_TLS_KEY_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/server.key
+      - CORE_PEER_TLS_ROOTCERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/ca.crt
+      - CORE_PEER_MSPCONFIGPATH=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1.example.com/users/Admin@org1.example.com/msp
+    working_dir: /opt/gopath/src/github.com/hyperledger/fabric/peer
+    command: /bin/bash -c './scripts/script.sh ${CHANNEL_NAME} ${DELAY} ${LANG}; sleep $TIMEOUT'
+    volumes:
+        - /var/run/:/host/var/run/
+        - ./chaincode/:/opt/gopath/src/github.com/hyperledger/fabric/peer/chaincode/
+        - ./channel/crypto-config:/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/
+        - ./scripts:/opt/gopath/src/github.com/hyperledger/fabric/peer/scripts/
+        - ./channel/config:/opt/gopath/src/github.com/hyperledger/fabric/peer/channel-artifacts
+    depends_on:
+      - orderer.example.com
+      - peer0.org1.example.com
+      - peer1.org1.example.com
+      - peer0.org2.example.com
+      - peer1.org2.example.com
+      - peer0.org3.example.com
+      - peer1.org3.example.com
+      - builder
+    networks:
+      - kubaoyun
+  builder:
+    image: ${FABRIC_BUILDER_FIXTURE_IMAGE}:${ARCH}-${FABRIC_BUILDER_FIXTURE_TAG}
+    networks:
+      - kubaoyun
